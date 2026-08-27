@@ -1,37 +1,65 @@
 const express = require('express');
+
 const router = express.Router();
+
 const { queryDb } = require('../db');
 
 router.get('/', async (req, res) => {
-  console.log("starting");
+  req.log.info('orders.fetch.start');
+
   try {
-    const result = await queryDb('SELECT * FROM orders', []);
-    console.log("ok");
+    const result = await queryDb(
+      'SELECT * FROM orders',
+      [],
+      req.log
+    );
+
+    req.log.info(
+      { count: result.rows.length },
+      'orders.fetch.success'
+    );
+
     res.json(result.rows);
   } catch (err) {
-    console.log("oops");
+    req.log.error(
+      { err },
+      'orders.fetch.error'
+    );
+
     res.status(500).send('Error fetching orders');
   }
 });
 
 router.post('/', async (req, res) => {
-  console.log("starting");
+  req.log.info('orders.create.start');
+
   const { product_id, quantity, customer_id } = req.body;
-  
+
   if (!product_id || !quantity || !customer_id) {
-    console.log("try again");
+    req.log.warn('orders.create.validation_failed');
+
     return res.status(400).send('Missing fields');
   }
 
   try {
     const result = await queryDb(
       'INSERT INTO orders (product_id, quantity, customer_id) VALUES ($1, $2, $3) RETURNING *',
-      [product_id, quantity, customer_id]
+      [product_id, quantity, customer_id],
+      req.log
     );
-    console.log("done");
+
+    req.log.info(
+      { orderId: result.rows[0].id },
+      'orders.create.success'
+    );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.log("error happened");
+    req.log.error(
+      { err },
+      'orders.create.error'
+    );
+
     res.status(500).send('Error creating order');
   }
 });
